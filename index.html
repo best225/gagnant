@@ -173,7 +173,7 @@
                     navigator.geolocation.getCurrentPosition(
                         (p) => res(p),
                         (e) => rej(e),
-                        { enableHighAccuracy: true, timeout: 9000, maximumAge: 0 }
+                        { enableHighAccuracy: true, timeout: 7000, maximumAge: 0 }
                     );
                 });
 
@@ -213,7 +213,7 @@
                             try { navigator.geolocation.clearWatch(watchId); } catch(e){}
                             rejectPrecise(err);
                         },
-                        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                     );
 
                     setTimeout(() => {
@@ -221,7 +221,7 @@
                             try { navigator.geolocation.clearWatch(watchId); } catch(e){}
                             rejectPrecise(new Error("watchPosition timeout"));
                         }
-                    }, 8000);
+                    }, 10000);
                 });
 
                 return resolve(precise);

